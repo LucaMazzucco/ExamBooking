@@ -1,157 +1,193 @@
 <?php
 
-require_once ('functions/config.php');
-require_once ('functions/functions.php');
-require_once ('functions/db_functions.php');
+require_once('php_functions.php');
+
+check_time_inactivity();
+setcookie('testcookie', 'testcookie', time()+3600);
+
+if(!isset($_SESSION['refresh']))
+    header("Refresh:0");
+$_SESSION['refresh'] = 'yes';
+
+$message = '';
+?>
 
 
-if(logged()) {
-    $user_reservation = get_user_seats(get_username()); //Seats the logged user has already booked
-    $reserved = get_reserved_seats(get_username()); //Seats reserved by other users
-    $release = get_seats_to_release(); //Seats the logged user want to release
-} else{
-    $user_reservation = array();
-    $reserved = get_reserved_seats(); //Seats reserved by all users
-}
-$selected = get_selected_seats(); //Seats selected by the user in order to book them
 
-if(isset($_GET['action']) && $_GET['action'] == 'reserve') {
 
-    if(empty($selected)) {
-        $_SESSION['message'] = "<p class='message error'>Please select the seats you want to reserved.</p>";
-    } else {
-        setcookie("continue_operation", "true");
-        if (!logged()) {
-            header("Location: login.php");
-            exit;
-        } else {
-            if (insert_seats(get_username(), $selected)) {
-                $_SESSION['message'] = "<p class='message success'>Your seats are now booked.</p>";
-                $user_reservation = array_merge($user_reservation, $selected);
-            } else {
-                $_SESSION['message'] = "<p class='message error'>An error occurred while performing the operation.</p>";
-            }
-            $selected = array();
-            delete_cookies("selected");
-        }
-    }
-    header("Location: index.php");
-    exit;
-}
 
+<?php
+    global $color2;
 if(isset($_GET['action']) && $_GET['action'] == 'release' && !empty($release)){
 
-    if(!logged()){
+    if(!u_Log_in()) {
         $_SESSION['message'] = "<p class='message error'>Session expired. Log in again to perform the operation.</p>";
-    }else{
-        if(delete_seats(get_username(), $release)){
-            $_SESSION['message'] = "<p class='message success'>Your reservation has been cancelled.</p>";
-            $user_reservation = get_user_seats(get_username());
-        } else{
-            $_SESSION['message'] = "<p class='message error'>An error occurred while performing the operation.</p>";
-        }
-        $release = array();
-        delete_cookies("release");
     }
     header("Location: index.php");
     exit;
 }
 
+if(isset($_GET['book']) ){
+
+    if(!u_Log_in()) {
+        $_SESSION['message'] = "<p class='message error'>Session expired. Log in again to perform the operation.</p>";
+    }
+    else{
+
+        $start = $_GET['starta'];
+        $dest = $_GET['desta'];
+        $quant = $_GET['quant'];
+        $message = get_email().", Path choosed from: ".$start." to ".$dest." for ".$quant." people"."\n";
+        $result = enter_book(get_email(), $start, $dest, $quant);
+        if($result ==0)
+            $message = $message."\nTrip succesfully booked!\n";
+
+
+        if( $result == -1)
+            $message = $message."Error while booking!\n";
+        if( $result == -2)
+            $message = "You have already a book!\n";
+        if( $result == -3)
+            $message = "Shuttle capacity overpassed!\n";
+        if( $result == -4)
+            $message = "Wrong addresses!\n";
+        if( $result == -5)
+            $message = "Wrong quantity!\n";
+
+    }
+}
+
+if(isset($_GET['book_delete']) ) {
+
+    if (!u_Log_in()) {
+        $_SESSION['message'] = "<p class='message error'>Session expired. Log in again to perform the operation.</p>";
+    } else {
+        delete_book(get_email());
+    }
+
+
+}
 
 require_once('header.php');
 ?>
 
 <div id="container">
-    <div id="wrapper">
-    <table id="seats">
-        <tbody>
-            <?php
-            for($i = 0; $i < $rows; $i++){
-                echo '<tr>';
-                for($j = 0; $j < $columns; $j++){
-                    $id = $i*$columns + $j + 1;
-                    if(in_array($id, $reserved)){
-                        echo '<td><img id="'.$id.'" class="seats reserved" src="images/armchair.png"/></td>';
-                    }elseif (logged() && in_array($id, $user_reservation)){
-                        echo '<td><img id="'.$id.'" class="seats user_reservation" src="images/armchair.png"/></td>';
-                    }elseif (in_array($id, $selected)){
-                        echo '<td><img id="'.$id.'" class="seats selected" src="images/armchair.png"/></td>';
-                    }else{
-                        echo '<td><img id="'.$id.'" class="seats available" src="images/armchair.png"/></td>';
-                    }
-                }
-                echo '</tr>';
-            }
-            ?>
-        </tbody>
-    </table>
-    <div id="message-box">
-        <a href="index.php?action=reserve"><input type="button" id="reserve" name="reserve" value="Reserve" /></a>
-        <?php
-        if(isset($_SESSION['message'])) {
-            echo $_SESSION['message'];
-            $_SESSION['message'] = '';
-        }
-        ?>
-    
-        <p class="confirm">Are you sure you want to cancel your reservation?</p>
-        <a href="index.php?action=release" class="confirm"><input type="button" id="release" name="release" class="confirm" value="Confirm"/></a>
-        <input type="button" id="cancel" name="cancel" class="confirm" value="Cancel"/>
+    <div id="bid">
+        <table cellspacing="20">
+            <?php if(u_Log_in())
+                echo "<tr><td><p>$message</p></td>  </tr>"?>
+            <tr><td><h2>Shuttle path planning<h2></h2></td></tr>
 
-        <h2>STATS</h2>
-        <table id="stats">
-            <tbody>
-                <tr>
-                    <td>
-                        <label for="tot_num">Total number of seats:</label>
-                    </td>
-                    <td>
-                        <span id="tot_num"><?php echo $columns*$rows?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="num_reserved" style="color: #cc0000">Reserved seats:</label>
-                    </td>
-                    <td>
-                        <span id="num_reserved"><?php echo count($reserved)?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="num_available" style="color: #008000">Available seats:</label>
-                    </td>
-                    <td>
-                        <span id="num_available"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="num_selected" style="color: #ffcc00">Selected seats:</label>
-                    </td>
-                    <td>
-                        <span id="num_selected"><?php echo count($selected)?></span>
-                    </td>
-                </tr>
-                <?php
-                if(logged()) {
-                    ?>
-                    <tr>
-                        <td>
-                            <label for="num_user_reservation" style="color: #ff8000">Your seats:</label>
-                        </td>
-                        <td>
-                            <span id="num_user_reservation"><?php echo count($user_reservation) ?></span>
-                        </td>
-                    </tr>
-                    <?php
-                }
-                ?>
-            </tbody>
+
+
+
+            <?php if(!u_Log_in() && isset($_GET['booking'])){
+                echo "<p class='message error' style='color: #cc0000'>Session expired. Log in again to perform the operation.</p>";
+            }?>
+            <?php if(!u_Log_in() && isset($_GET['bookdelete'])){
+                echo "<p class='message error' style='color: #cc0000'>Session expired. Log in again to perform the operation.</p>";
+            }?>
         </table>
+        <table cellspacing="20">
+
+            <?php
+            global $color2;
+            echo "  <tr><td>FROM</td><td>TO</td><td>ON BOARD</td><td>"; if(u_Log_in()) echo "BOOKERS</td></tr>";
+
+            $locations = get_location_list();
+            $onboard = calc_on_board();
+            $i=0;
+            $size = count($locations)-1;
+            for($i=0; $i<$size; $i++){
+                $c = $i+1;
+                $bookers = geet_bookers($locations[$i]);
+                $bsize = count($bookers);
+                $b = get_book();
+                $color = '#cc0000';
+                if($locations[$i] == $b[1])
+                    $colorS = '#cc0000';
+                else
+                    $colorS = '#000000';
+
+                if($locations[$c] == $b[2])
+                    $colorD = '#cc0000';
+                else
+                    $colorD = '#000000';
+                echo "  <tr><td><p class='message error' style='color: $colorS'>" . $locations[$i] . "</td><td><p class='message error' style='color: $colorD'>" . $locations[$c] . "</td><td>" .$onboard[$i] . "</td><td>"; if(u_Log_in()) echo  $bookers . "</td></tr>";
+            }
+
+
+
+
+           // echo "  <tr><td>TOTAL BOOKED</td><td></td><td></td><td></td><td>" . "3" . "</td></tr>";
+
+            ?>
+            <?php
+                if(!is_booked(get_email()) && u_Log_in()) {
+                    echo"";?>
+                    <tr ><td colspan='5' >
+            <form id = 'book' method = 'get' action = 'index.php' >
+                <table border = '1' >
+                    <tr ><td >From <input type = 'text' id = 'starta' name = 'starta'/></td ><td >To <input type = 'text' id = 'desta' name = 'desta'/></td><td>Quantity  <input type='number' min = "1" step='1' id='quant' name='quant'/></td>
+                    <td ><input type = 'submit' id = 'book' name = 'book' value = 'Book now' /></td ></tr >
+
+                    <tr><td> <select id = "prevstart" name="prevstart" onchange="setstartaddr();">
+                    <?php
+                    $locs = get_location_list();
+                    echo "<option value=\"dest\">-</option>";
+                    foreach($locs as $loc){
+                              echo "<option value=\"start\">$loc</option>";
+                     }
+                              echo "</select> </td>";?>
+
+
+                    <td> <select id = "prevdest" name="prevdest" onchange="setdestaddr();">
+                    <?php
+                    $locs = get_location_list();
+                    echo "<option value=\"dest\">-</option>";
+                    foreach($locs as $loc){
+                              echo "<option value=\"dest\">$loc</option>";
+                     }
+                                echo "</select> </td>
+
+
+
+                </tr>
+                </table >
+            </form >
+                </td ></tr >
+            ";}
+            else {if(u_Log_in())
+                    echo"<tr ><td >
+                <form id = 'book_delete' method = 'get' action = 'index.php' >
+                <input type = 'submit' id = 'book_delete' name = 'book_delete' value = 'Delete book' /></form></td></tr>
+                ";
+                }
+            ?>
+            
+        </table><br><br><br><br>
     </div>
-    </div>
+
+
 </div>
+
+
 <?php
 include('footer.php');
 ?>
+<script type="text/javascript">
+    function setstartaddr(){
+            var e = document.getElementById("prevstart");
+            var strUser = e.options[e.selectedIndex].text;
+
+            document.getElementById("starta").value = strUser;
+
+    }
+    function setdestaddr(){
+
+        var e = document.getElementById("prevdest");
+        var strUser = e.options[e.selectedIndex].text;
+
+        document.getElementById("desta").value = strUser;
+    }
+</script>

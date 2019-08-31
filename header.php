@@ -1,61 +1,76 @@
 <?php
-require_once ('functions/config.php');
-require_once ('functions/functions.php');
-require_once ('functions/db_functions.php');
-require_once ('functions/initial_checks.php');
+require_once('php_functions.php');
+setcookie('testcookie', 'testcookie', time()+3600);
 
-/* INITIAL CHECKS */
-check_https();
-check_cookie();
-check_inactivity_time();
+check_time_inactivity();
+//check_https();
+
+$use_sts = true;
 
 ?>
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-    <title>Polito's Theatre</title>
+    <link rel="icon" href="AllAuctionsIcon.jpg" />
+    <title>Exam Bookings</title>
     <meta http-equiv="Content-type" content="text/html; charset=utf-8">
     <script type="text/javascript" src="js/jquery-3.0.0.min.js"></script>
-    <script type="text/javascript" src="js/jsfunctions.js"></script>
-    <link href="stylesheet/style.css" rel="stylesheet" type="text/css">
-    <noscript>JavaScript is disabled. In this way the website could not work well.</noscript>
+    <link href="theme.css" rel="stylesheet" type="text/css">
+
 </head>
 
 <body>
+    <noscript>
+        <div id = "nojava">
+            <p style="color: #cc0000">You don't have javascript enabled.  Good luck with that.</p>
+        </div>
 
+
+    </noscript>
     <div id="header">
-        <div id="title_header"><p>Polito's Theatre</p></div>
+        <div id="title_header"><p></p></div>
     </div>
+    <?php
+
+    if(check_cookie()){?>
     <div id="menu">
-        <div><h2>MENU</h2></div>
-
         <?php
-            /* Highlight the current menu element */
-            $page = explode('/', $_SERVER['PHP_SELF']);
-
-                switch ($page[count($page) - 1]){
-                    case 'index.php':
-                        $active_el = 1;
+            $url = explode('/', $_SERVER['PHP_SELF']);
+                switch ($url[count($url) - 1]){
+                    case 'home.php':
+                        $page_active = 1;
                         break;
                     case 'login.php':
-                        $active_el = 2;
+                        $page_active = 2;
                         
                         break;
                     case 'logout.php':
-                        $active_el = 3;
+                        $page_active = 3;
                         break;
                     default:
-                        $active_el = 1;
+                        $page_active = 1;
                         break;
                 }
-
         ?>
-
-        <div><a class="menu_el <?php if($active_el == 1) echo 'active'; ?>" href="index.php">Home</a></div>
-            <?php if (!logged()) { ?>
-                
-                <div><a class="menu_el <?php if($active_el == 2) echo 'active'; ?>" href="login.php">Login / Sign Up</a></div>
-            <?php }else { ?>
-                  <div><a class="menu_el <?php if($active_el == 3) echo 'active'; ?>" href="logout.php">Log Out</a></div>
+        <div><a class="menu_el <?php if($page_active == 1) echo 'active'; ?>" href="index.php">Home</a></div>
+            <?php if (!u_Log_in())
+            { ?>
+                <div>
+                    <a class="menu_el <?php if($page_active == 2) echo 'active'; ?>" href="login.php">Login / Register</a>
+                </div>
+            <?php
+            }else { ?>
+                  <div>
+                      <a class="menu_el <?php if($page_active == 3) echo 'active'; ?>" href="logout.php">Log Out</a>
+                  </div>
             <?php } ?>
     </div>
+<?php }
+    else{
+        ?>
+        <div id = "menu">
+            <p style="color: #cc0000">Cookie are not enabled! Please enable to navigate!</p>
+        </div>
+    <?php
+    }
+?>

@@ -1,5 +1,5 @@
 <?php
-require_once 'functions/functions.php';
-log_out();
+require_once 'php_functions.php';
+Logout();
 header('Location: index.php' );
 ?>

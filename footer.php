@@ -1,5 +1,7 @@
+<html>
+<body>
 <div id="footer">
-    <p>Polito's Theatre - Copyright 2016</p>
+    <p>Shuttle Bookings - Copyright 2018 Luca Mazzucco</p>
 </div>
 </body>
 </html>
